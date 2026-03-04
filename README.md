@@ -53,7 +53,7 @@ Initializes the RUM client. Call once before using `emit`, `flush`, or `resetSes
 | `config.environment` | `string` | No | Logical environment for the session (e.g. `'production'`, `'staging'`). |
 | `config.release` | `string` | No | Application release/version identifier (e.g. `'2.1.0'`). |
 | `config.branchName` | `string` | No | Git branch name associated with this session (e.g. `'feature/checkout'`). |
-| `config.sessionMetadata` | `Record<string, string>` | No | Additional immutable key-value pairs for the session (same validation as event metadata). Do **not** put `environment`, `release`, or `branch_name` here—use the top-level fields above. |
+| `config.sessionMetadata` | `Struct` | No | Additional immutable metadata for the session (same validation as event metadata). Do **not** put `environment`, `release`, or `branch_name` here—use the top-level fields above. |
 | `config.config` | `object` | No | Optional tuning; see [Configuration options](#configuration-options). |
 
 **Example with options**
@@ -82,7 +82,7 @@ Records one event. Events are validated, then buffered and sent in batches. Inva
 | Parameter | Type | Required | Description |
 |-----------|------|----------|--------------|
 | `input.title` | `string` | Yes | Event name (e.g. `'button_clicked'`). Max 100 characters. |
-| `input.metadata` | `Record<string, string>` | No | Optional key-value data. See [Event constraints](#event-constraints). |
+| `input.metadata` | `Struct` | No | Optional metadata (key-value; values are primitive or array of primitives only—no nested objects). See [Event constraints](#event-constraints). |
 
 **Examples**
 
@@ -93,8 +93,14 @@ testchimp.emit({
   title: 'form_submitted',
   metadata: {
     form_id: 'signup',
-    step: '2',
+    step: 2,
   },
+});
+
+// Values: primitive or array of primitives only
+testchimp.emit({
+  title: 'checkout_step',
+  metadata: { step_index: 1, total: 3, tags: ['cart', 'checkout'] },
 });
 ```
 
@@ -150,9 +156,9 @@ testchimp.init({
 Events that exceed these limits are dropped and a warning is logged:
 
 - **title**: Required, non-empty string, max **100** characters.
-- **metadata**: Optional. Max **10** keys; each key max **50** chars, each value max **200** chars (string values only). Total serialized event size max **5 KB**.
+- **metadata**: Optional. Values must be primitive (string, number, boolean, null) or array of primitives—no nested objects. Max **10** keys; each key max **50** chars; string values max **200** chars; arrays max **50** elements. Total serialized event size max **5 KB**.
 
-Session metadata (in `init`) uses the same metadata key/value/size rules.
+Session metadata (in `init`) uses the same metadata rules. The type `Struct` is exported for TypeScript users.
 
 ## Session and batching
 

@@ -14,7 +14,9 @@ import {
   getDefaultEventBufferConfig,
   type EventBufferConfig,
 } from "./events";
-import type { EmitInput, ValidatedEvent } from "./validation";
+import type { EmitInput, ValidatedEvent, Struct } from "./validation";
+
+export type { Struct, EmitInput };
 
 const DEFAULT_ENDPOINT = "https://ingress.testchimp.io";
 const DEFAULT_EVENT_SEND_INTERVAL = 10000;
@@ -28,7 +30,7 @@ export interface InitConfig {
   environment?: string;
   release?: string;
   branchName?: string;
-  sessionMetadata?: Record<string, string>;
+  sessionMetadata?: Struct;
   config?: {
     captureEnabled?: boolean;
     maxEventsPerSession?: number;

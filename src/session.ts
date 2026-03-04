@@ -1,5 +1,5 @@
 import { generateULID } from "./ulid";
-import { validateSessionMetadata } from "./validation";
+import { validateSessionMetadata, type Struct } from "./validation";
 
 const STORAGE_SESSION_ID = "testchimp_session_id";
 const STORAGE_LAST_ACTIVITY = "testchimp_last_activity";
@@ -16,7 +16,7 @@ export function getStorage(): Storage | null {
 
 export function resolveSessionId(
   providedSessionId: string | undefined,
-  sessionMetadata: Record<string, string> | undefined,
+  sessionMetadata: Struct | undefined,
   inactivityTimeoutMillis: number
 ): { sessionId: string; isNew: boolean } {
   if (providedSessionId && typeof providedSessionId === "string" && providedSessionId.length > 0) {
@@ -44,7 +44,7 @@ export function resolveSessionId(
 
 export function persistSession(
   sessionId: string,
-  sessionMetadata?: Record<string, string>
+  sessionMetadata?: Struct
 ): void {
   const storage = getStorage();
   if (!storage) return;
@@ -114,7 +114,7 @@ export function setEventTypeCounts(counts: Record<string, number>): void {
   }
 }
 
-export function getSessionMetadata(): Record<string, string> | undefined {
+export function getSessionMetadata(): Struct | undefined {
   const storage = getStorage();
   if (!storage) return undefined;
   try {
