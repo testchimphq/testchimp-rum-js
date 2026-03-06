@@ -1,6 +1,6 @@
 {
   "name": "testchimp-rum-js",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Lightweight browser library for emitting structured user interaction events to TestChimp",
   "main": "dist/testchimp-rum.min.js",
   "module": "dist/testchimp-rum.mjs",
@@ -17,6 +17,7 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@types/node": "^25.3.5",
     "esbuild": "^0.19.0",
     "typescript": "^5.3.0"
   },
