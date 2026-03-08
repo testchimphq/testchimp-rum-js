@@ -9,17 +9,6 @@ function truncate(s: string): string {
 function getBrowser(): string {
   if (typeof navigator === "undefined") return "unknown";
   const ua = navigator.userAgent ?? "";
-  const uaData = navigator as unknown as { userAgentData?: { brands?: Array<{ brand: string }> } };
-  if (uaData.userAgentData?.brands?.length) {
-    const main = uaData.userAgentData.brands[0]?.brand;
-    if (main) {
-      const name = main === "Not_A Brand" ? uaData.userAgentData.brands[1]?.brand : main;
-      if (name) {
-        const normalized = name === "Edg" ? "Edge" : name;
-        return truncate(normalized);
-      }
-    }
-  }
   if (/Edg\//i.test(ua)) return "Edge";
   if (/Firefox\//i.test(ua)) return "Firefox";
   if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) return "Chrome";
