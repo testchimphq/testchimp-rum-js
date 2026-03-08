@@ -49,11 +49,11 @@ Initializes the RUM client. Call once before using `emit`, `flush`, or `resetSes
 |-----------|------|----------|--------------|
 | `config.projectId` | `string` | Yes | TestChimp project ID. |
 | `config.apiKey` | `string` | Yes | TestChimp API key for this project. |
+| `config.environment` | `string` | Yes | Logical environment for the session (e.g. `'production'`, `'staging'`). |
 | `config.sessionId` | `string` | No | Override session ID (otherwise derived from `localStorage` or generated). |
-| `config.environment` | `string` | No | Logical environment for the session (e.g. `'production'`, `'staging'`). |
 | `config.release` | `string` | No | Application release/version identifier (e.g. `'2.1.0'`). |
 | `config.branchName` | `string` | No | Git branch name associated with this session (e.g. `'feature/checkout'`). |
-| `config.sessionMetadata` | `Struct` | No | Additional immutable metadata for the session (same validation as event metadata). Do **not** put `environment`, `release`, or `branch_name` here—use the top-level fields above. |
+| `config.sessionMetadata` | `Struct` | No | Additional immutable metadata for the session (same validation as event metadata). Do **not** put `environment`, `release`, or `branchName` here—use the top-level fields above. |
 | `config.config` | `object` | No | Optional tuning; see [Configuration options](#configuration-options). |
 
 **Example with options**
@@ -128,12 +128,29 @@ Pass these under `config` in `init()`:
 | Option | Type | Default | Description |
 |--------|------|--------|-------------|
 | `captureEnabled` | `boolean` | `true` | If `false`, `emit` is a no-op. |
+| `enableDefaultSessionMetadata` | `boolean` | `true` | When `true` (default), the session init request is automatically populated with client-derived metadata (browser, device type, OS, language, timezone). Set to `false` to disable and send only your own `sessionMetadata`. |
 | `maxEventsPerSession` | `number` | `100` | Max events accepted per session (by title count + repeats). |
 | `maxRepeatsPerEvent` | `number` | `3` | Max number of events with the same `title` per session. |
 | `eventSendInterval` | `number` | `10000` | Interval (ms) for sending buffered events. |
 | `maxBufferSize` | `number` | `100` | Max events in buffer before an automatic flush. |
 | `inactivityTimeoutMillis` | `number` | `1800000` (30 min) | Session considered expired after this much inactivity; next load gets a new session. |
 | `testchimpEndpoint` | `string` | `'https://ingress.testchimp.io'` | Base URL for RUM API (session start and events). |
+
+**Default session metadata (updated behaviour)**
+
+- **Config:** `enableDefaultSessionMetadata` under `config` in `init()`.
+- **Default value:** `true`. Session init requests are automatically populated with the metadata below unless you set it to `false`.
+- **What gets populated:** When enabled, the **session init** request (only) includes the following client-derived keys in `metadata`. They are computed in the browser from `navigator` and `Intl`; you do not need to pass them. User-provided `sessionMetadata` overrides any of these if you use the same key name.
+
+| Key | Populated with |
+|-----|----------------|
+| `_browser` | Browser name only (e.g. Chrome, Firefox, Edge, Safari). No version. |
+| `_device_type` | One of: `desktop`, `mobile`, `tablet`. |
+| `_os` | Normalized OS (e.g. mac, windows, linux, ios, android). |
+| `_language` | Browser language (e.g. en-US). |
+| `_timezone` | IANA timezone (e.g. America/New_York). |
+
+These fields are added **only to the session init** call (`/rum/session/start`). Individual `emit()` calls are unchanged and do not include this metadata.
 
 **Example: high-frequency sampling**
 

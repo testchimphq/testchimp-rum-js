@@ -8,6 +8,7 @@ import {
   getStorage,
   getSessionMetadata,
 } from "./session";
+import { getDefaultSessionMetadata } from "./defaultSessionMetadata";
 import { validateEvent, validateSessionMetadata } from "./validation";
 import {
   createEventBuffer,
@@ -27,12 +28,13 @@ export interface InitConfig {
   projectId: string;
   apiKey: string;
   sessionId?: string;
-  environment?: string;
+  environment: string;
   release?: string;
   branchName?: string;
   sessionMetadata?: Struct;
   config?: {
     captureEnabled?: boolean;
+    enableDefaultSessionMetadata?: boolean;
     maxEventsPerSession?: number;
     maxRepeatsPerEvent?: number;
     eventSendInterval?: number;
@@ -140,7 +142,11 @@ export function init(config: InitConfig): void {
   }
 
   if (isNew && captureEnabled) {
-    const metadata = getSessionMetadata() ?? sessionMetadata ?? {};
+    const userMeta = getSessionMetadata() ?? sessionMetadata ?? {};
+    const metadata =
+      cfg.enableDefaultSessionMetadata !== false
+        ? { ...getDefaultSessionMetadata(), ...userMeta }
+        : userMeta;
     const body: Record<string, unknown> = {
       session_id: sessionId,
       started_at: Date.now(),
