@@ -1,4 +1,4 @@
-# testchimp-rum-js
+# @testchimp/rum-js
 
 Lightweight browser library for emitting structured user interaction events to [TestChimp](https://testchimp.io). Use it to capture real user activity for TrueCoverage and session analytics. Events are buffered and sent in batches; requests are fire-and-forget and do not block the main thread.
 
@@ -7,19 +7,19 @@ Lightweight browser library for emitting structured user interaction events to [
 **npm**
 
 ```bash
-npm install testchimp-rum-js
+npm install @testchimp/rum-js
 ```
 
 **Script tag (UMD)**
 
 ```html
-<script src="https://unpkg.com/testchimp-rum-js/dist/testchimp-rum.min.js"></script>
+<script src="https://unpkg.com/@testchimp/rum-js/dist/testchimp-rum.min.js"></script>
 ```
 
 **ES module**
 
 ```javascript
-import testchimp from 'testchimp-rum-js';
+import testchimp from '@testchimp/rum-js';
 ```
 
 ## Quick start

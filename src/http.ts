@@ -6,7 +6,7 @@
 function getFetch(): typeof fetch {
   if (typeof fetch !== "undefined") return fetch;
   throw new Error(
-    "testchimp-rum-js: fetch is not available. Use a browser or Node 18+."
+    "@testchimp/rum-js: fetch is not available. Use a browser or Node 18+."
   );
 }
 
