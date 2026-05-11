@@ -128,7 +128,7 @@ Pass these under `config` in `init()`:
 | Option | Type | Default | Description |
 |--------|------|--------|-------------|
 | `captureEnabled` | `boolean` | `true` | If `false`, `emit` is a no-op. |
-| `enableDefaultSessionMetadata` | `boolean` | `true` | When `true` (default), the session init request is automatically populated with client-derived metadata (browser, device type, OS, language, timezone). Set to `false` to disable and send only your own `sessionMetadata`. |
+| `enableDefaultSessionMetadata` | `boolean` | `true` | When `true` (default), the session init request is automatically populated with client-derived metadata (`_platform`, browser, device type, OS, language, timezone). Set to `false` to disable and send only your own `sessionMetadata`. |
 | `maxEventsPerSession` | `number` | `100` | Max events accepted per session (by title count + repeats). |
 | `maxRepeatsPerEvent` | `number` | `3` | Max number of events with the same `title` per session. |
 | `eventSendInterval` | `number` | `10000` | Interval (ms) for sending buffered events. |
@@ -144,6 +144,7 @@ Pass these under `config` in `init()`:
 
 | Key | Populated with |
 |-----|----------------|
+| `_platform` | Always `web` for this SDK (native iOS/Android SDKs send `ios`, `android`, or `macos`). |
 | `_browser` | Browser name only (e.g. Chrome, Firefox, Edge, Safari). No version. |
 | `_device_type` | One of: `desktop`, `mobile`, `tablet`. |
 | `_os` | Normalized OS (e.g. mac, windows, linux, ios, android). |
@@ -151,6 +152,8 @@ Pass these under `config` in `init()`:
 | `_timezone` | IANA timezone (e.g. America/New_York). |
 
 These fields are added **only to the session init** call (`/rum/session/start`). Individual `emit()` calls are unchanged and do not include this metadata.
+
+**Native SDKs (iOS / Android):** Session start uses the same reserved `_*` keys where applicable: `_platform` (`ios` / `android`; macOS targets use `macos`), `_os`, `_device_type` (`mobile` / `tablet`), `_language`, `_timezone`, `_os_version`, `_device_model`, `_manufacturer`. Previously `_platform` was `native`; dashboards should filter on `ios` / `android` / `macos` / `web` as needed.
 
 **Example: high-frequency sampling**
 

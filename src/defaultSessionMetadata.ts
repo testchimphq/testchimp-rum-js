@@ -66,6 +66,7 @@ function getTimezone(): string {
 export function getDefaultSessionMetadata(): Struct {
   if (typeof navigator === "undefined") return {};
   return {
+    _platform: "web",
     _browser: getBrowser(),
     _device_type: getDeviceType(),
     _os: getOs(),
