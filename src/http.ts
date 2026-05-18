@@ -10,6 +10,10 @@ function getFetch(): typeof fetch {
   );
 }
 
+export const RUM_PLATFORM_HEADER = "testchimp-rum-platform";
+/** {@link ExecutionPlatform} ordinal for web (WEB=1, IOS=2, ANDROID=3). */
+export const WEB_PLATFORM_ORDINAL = 1;
+
 export interface HttpConfig {
   baseUrl: string;
   projectId: string;
@@ -53,6 +57,7 @@ export async function post(
     if (ciTestInfo) {
       headers["ci-test-info"] = ciTestInfo;
     }
+    headers[RUM_PLATFORM_HEADER] = String(WEB_PLATFORM_ORDINAL);
     const res = await getFetch()(url, {
       method: "POST",
       headers,
