@@ -21,6 +21,8 @@ export type { Struct, EmitInput };
 
 const DEFAULT_ENDPOINT = "https://ingress.testchimp.io";
 const DEFAULT_EVENT_SEND_INTERVAL = 10000;
+/** Shorter batch interval when Playwright injects CI test info at init (secondary safety net). */
+const CI_AUTOMATION_EVENT_SEND_INTERVAL = 2000;
 const DEFAULT_MAX_BUFFER_SIZE = 100;
 const DEFAULT_INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 min
 
@@ -68,7 +70,7 @@ function onVisibilityChange(): void {
   }
 }
 
-function onBeforeUnload(): void {
+function onPageHide(): void {
   if (state) {
     state.buffer.flush(true);
   }
@@ -78,6 +80,35 @@ function onStorage(e: StorageEvent): void {
   if (e.key === "testchimp_session_id" && e.newValue && state) {
     state.sessionId = e.newValue;
   }
+}
+
+function hasCiTestInfoAtInit(): boolean {
+  if (typeof globalThis === "undefined") return false;
+  const v = (globalThis as unknown as { __TC_CI_TEST_INFO?: string })
+    .__TC_CI_TEST_INFO;
+  return typeof v === "string" && v.length > 0;
+}
+
+function resolveEventSendInterval(
+  cfg: NonNullable<InitConfig["config"]>
+): number {
+  if (cfg.eventSendInterval !== undefined) return cfg.eventSendInterval;
+  if (hasCiTestInfoAtInit()) return CI_AUTOMATION_EVENT_SEND_INTERVAL;
+  return DEFAULT_EVENT_SEND_INTERVAL;
+}
+
+function installAutomationFlushHook(): void {
+  if (typeof globalThis === "undefined") return;
+  (globalThis as unknown as { __TC_RUM_FLUSH?: () => void }).__TC_RUM_FLUSH =
+    () => {
+      if (state?.initialized) state.buffer.flush(true);
+    };
+}
+
+function clearAutomationFlushHook(): void {
+  if (typeof globalThis === "undefined") return;
+  delete (globalThis as unknown as { __TC_RUM_FLUSH?: () => void })
+    .__TC_RUM_FLUSH;
 }
 
 export function init(config: InitConfig): void {
@@ -90,7 +121,7 @@ export function init(config: InitConfig): void {
   const captureEnabled = cfg.captureEnabled !== false;
   const endpoint = cfg.testchimpEndpoint ?? DEFAULT_ENDPOINT;
   const inactivityTimeout = cfg.inactivityTimeoutMillis ?? DEFAULT_INACTIVITY_TIMEOUT;
-  const eventSendInterval = cfg.eventSendInterval ?? DEFAULT_EVENT_SEND_INTERVAL;
+  const eventSendInterval = resolveEventSendInterval(cfg);
   const maxBufferSize = cfg.maxBufferSize ?? DEFAULT_MAX_BUFFER_SIZE;
 
   const sessionMetadata = validateSessionMetadata(config.sessionMetadata);
@@ -132,9 +163,12 @@ export function init(config: InitConfig): void {
 
   scheduleFlush(eventSendInterval);
 
+  installAutomationFlushHook();
+
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("beforeunload", onPageHide);
+    window.addEventListener("pagehide", onPageHide);
   }
 
   if (typeof window !== "undefined") {
@@ -208,9 +242,12 @@ export function resetSession(): void {
     }
     state = null;
   }
+  clearAutomationFlushHook();
+
   if (typeof document !== "undefined") {
     document.removeEventListener("visibilitychange", onVisibilityChange);
-    window.removeEventListener("beforeunload", onBeforeUnload);
+    window.removeEventListener("beforeunload", onPageHide);
+    window.removeEventListener("pagehide", onPageHide);
   }
   if (typeof window !== "undefined") {
     window.removeEventListener("storage", onStorage);

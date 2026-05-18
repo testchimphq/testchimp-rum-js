@@ -24,9 +24,9 @@ export interface HttpConfig {
  * CI test info injected by Playwright runtime (TrueCoverage); sent as ci-test-info header on RUM ingest.
  */
 function getCiTestInfoHeader(): string | undefined {
-  if (typeof window === 'undefined') return undefined;
-  const w = window as unknown as { __TC_CI_TEST_INFO?: string };
-  const v = w.__TC_CI_TEST_INFO;
+  if (typeof globalThis === 'undefined') return undefined;
+  const g = globalThis as unknown as { __TC_CI_TEST_INFO?: string };
+  const v = g.__TC_CI_TEST_INFO;
   return typeof v === 'string' && v.length > 0 ? v : undefined;
 }
 
@@ -51,7 +51,6 @@ export async function post(
       "Content-Type": "application/json",
       "Project-Id": config.projectId,
       "TestChimp-Api-Key": config.apiKey,
-      ...(options?.keepalive && { "Keep-Alive": "true" }),
     };
     const ciTestInfo = getCiTestInfoHeader();
     if (ciTestInfo) {
@@ -62,6 +61,7 @@ export async function post(
       method: "POST",
       headers,
       body: JSON.stringify(body),
+      ...(options?.keepalive && { keepalive: true }),
     });
     return res.ok;
   } catch {

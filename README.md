@@ -113,6 +113,18 @@ Sends any buffered events immediately. Useful before navigation or when you want
 testchimp.flush();
 ```
 
+### `globalThis.__TC_RUM_FLUSH` (Playwright / CI automation)
+
+On `init()`, the SDK registers a stable automation hook on `globalThis` (not only `window`, so ESM bundles such as Angular can use it):
+
+```javascript
+globalThis.__TC_RUM_FLUSH(); // flushes buffered events with fetch keepalive: true
+```
+
+`@testchimp/playwright` calls this at the end of each web test (via the extended `page` fixture) so fast SmartTests do not lose buffered events when the browser context closes. Prefer this hook over `testchimp.flush()` in CI: the public `flush()` uses `keepalive: false`.
+
+When Playwright has already set `globalThis.__TC_CI_TEST_INFO` before `init()` and you do not pass `config.eventSendInterval`, the default batch interval is **2s** instead of 10s as a secondary safety net.
+
 ### `testchimp.resetSession()`
 
 Clears in-memory state and `localStorage` session data (session ID, event counts, etc.). The next `emit` (after a new `init` if needed) will start a new session.
@@ -131,7 +143,7 @@ Pass these under `config` in `init()`:
 | `enableDefaultSessionMetadata` | `boolean` | `true` | When `true` (default), the session init request is automatically populated with client-derived metadata (`_platform`, browser, device type, OS, language, timezone). Set to `false` to disable and send only your own `sessionMetadata`. |
 | `maxEventsPerSession` | `number` | `100` | Max events accepted per session (by title count + repeats). |
 | `maxRepeatsPerEvent` | `number` | `3` | Max number of events with the same `title` per session. |
-| `eventSendInterval` | `number` | `10000` | Interval (ms) for sending buffered events. |
+| `eventSendInterval` | `number` | `10000` (or `2000` when `globalThis.__TC_CI_TEST_INFO` is set before `init`) | Interval (ms) for sending buffered events. |
 | `maxBufferSize` | `number` | `100` | Max events in buffer before an automatic flush. |
 | `inactivityTimeoutMillis` | `number` | `1800000` (30 min) | Session considered expired after this much inactivity; next load gets a new session. |
 | `testchimpEndpoint` | `string` | `'https://ingress.testchimp.io'` | Base URL for RUM API (session start and events). |
@@ -188,8 +200,8 @@ Session metadata (in `init`) uses the same metadata rules. The type `Struct` is 
   - The buffer reaches `maxBufferSize`, or
   - The `eventSendInterval` timer fires, or
   - The page becomes hidden (`visibilitychange`), or
-  - `beforeunload` fires, or
-  - You call `flush()`.
+  - `beforeunload` / `pagehide` fires, or
+  - You call `flush()` or `globalThis.__TC_RUM_FLUSH()` (automation; uses keepalive).
 - **Delivery**: Requests use `fetch` with `keepalive: true` where needed so delivery is best-effort and non-blocking.
 
 ## Build and development
