@@ -50,30 +50,51 @@ export function createEventBuffer(
     return nextIndex;
   }
 
+  function eventsPayload(events: BufferedEvent[]) {
+    return {
+      session_id: sessionId,
+      events: events.map((e) => ({
+        title: e.title,
+        event_index: e.eventIndex,
+        timestamp_millis: e.timestampMillis,
+        metadata: e.metadata ?? {},
+      })),
+    };
+  }
+
   function sendBatch(events: BufferedEvent[], keepalive = false): void {
     if (events.length === 0) return;
+    void post(httpConfig, "/rum/events", eventsPayload(events), { keepalive });
+  }
 
-    post(
-      httpConfig,
-      "/rum/events",
-      {
-        session_id: sessionId,
-        events: events.map((e) => ({
-          title: e.title,
-          event_index: e.eventIndex,
-          timestamp_millis: e.timestampMillis,
-          metadata: e.metadata ?? {},
-        })),
-      },
-      { keepalive }
-    );
+  async function sendBatchAsync(
+    events: BufferedEvent[],
+    keepalive = false
+  ): Promise<boolean> {
+    if (events.length === 0) return true;
+    return post(httpConfig, "/rum/events", eventsPayload(events), { keepalive });
   }
 
   function flush(keepalive = false): void {
     if (buffer.length === 0) return;
     const toSend = [...buffer];
     buffer = [];
-    sendBatch(toSend, keepalive);
+    void sendBatchAsync(toSend, keepalive).then((ok) => {
+      if (!ok) {
+        buffer = [...toSend, ...buffer];
+      }
+    });
+  }
+
+  /** Drains the buffer; only removes events after a successful POST. */
+  async function flushAsync(keepalive = false): Promise<boolean> {
+    if (buffer.length === 0) return true;
+    const toSend = [...buffer];
+    const ok = await sendBatchAsync(toSend, keepalive);
+    if (ok) {
+      buffer = [];
+    }
+    return ok;
   }
 
   function add(event: ValidatedEvent): boolean {
@@ -94,6 +115,7 @@ export function createEventBuffer(
   return {
     add,
     flush,
+    flushAsync,
     getBufferSize,
     getBuffer,
     get maxBufferSize() {

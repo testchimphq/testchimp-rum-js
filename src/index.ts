@@ -21,8 +21,6 @@ export type { Struct, EmitInput };
 
 const DEFAULT_ENDPOINT = "https://ingress.testchimp.io";
 const DEFAULT_EVENT_SEND_INTERVAL = 10000;
-/** Shorter batch interval when Playwright injects CI test info at init (secondary safety net). */
-const CI_AUTOMATION_EVENT_SEND_INTERVAL = 2000;
 const DEFAULT_MAX_BUFFER_SIZE = 100;
 const DEFAULT_INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 min
 
@@ -82,33 +80,42 @@ function onStorage(e: StorageEvent): void {
   }
 }
 
-function hasCiTestInfoAtInit(): boolean {
+function hasCiTestInfo(): boolean {
   if (typeof globalThis === "undefined") return false;
   const v = (globalThis as unknown as { __TC_CI_TEST_INFO?: string })
     .__TC_CI_TEST_INFO;
   return typeof v === "string" && v.length > 0;
 }
 
-function resolveEventSendInterval(
-  cfg: NonNullable<InitConfig["config"]>
-): number {
-  if (cfg.eventSendInterval !== undefined) return cfg.eventSendInterval;
-  if (hasCiTestInfoAtInit()) return CI_AUTOMATION_EVENT_SEND_INTERVAL;
-  return DEFAULT_EVENT_SEND_INTERVAL;
-}
-
 function installAutomationFlushHook(): void {
   if (typeof globalThis === "undefined") return;
-  (globalThis as unknown as { __TC_RUM_FLUSH?: () => void }).__TC_RUM_FLUSH =
-    () => {
-      if (state?.initialized) state.buffer.flush(true);
-    };
+  const g = globalThis as unknown as {
+    __TC_RUM_FLUSH?: () => Promise<boolean>;
+    __TC_RUM_GET_BUFFER_SIZE?: () => number;
+  };
+  g.__TC_RUM_GET_BUFFER_SIZE = () =>
+    state?.initialized ? state.buffer.getBufferSize() : 0;
+  g.__TC_RUM_FLUSH = async () => {
+    if (!state?.initialized) return true;
+    // Page is still open during Playwright teardown; await a normal fetch (not keepalive).
+    const ok = await state.buffer.flushAsync(false);
+    if (!ok && hasCiTestInfo()) {
+      console.warn(
+        "[testchimp-rum] __TC_RUM_FLUSH: POST /rum/events failed or was not accepted"
+      );
+    }
+    return ok;
+  };
 }
 
 function clearAutomationFlushHook(): void {
   if (typeof globalThis === "undefined") return;
-  delete (globalThis as unknown as { __TC_RUM_FLUSH?: () => void })
-    .__TC_RUM_FLUSH;
+  const g = globalThis as unknown as {
+    __TC_RUM_FLUSH?: () => void;
+    __TC_RUM_GET_BUFFER_SIZE?: () => number;
+  };
+  delete g.__TC_RUM_FLUSH;
+  delete g.__TC_RUM_GET_BUFFER_SIZE;
 }
 
 export function init(config: InitConfig): void {
@@ -121,7 +128,8 @@ export function init(config: InitConfig): void {
   const captureEnabled = cfg.captureEnabled !== false;
   const endpoint = cfg.testchimpEndpoint ?? DEFAULT_ENDPOINT;
   const inactivityTimeout = cfg.inactivityTimeoutMillis ?? DEFAULT_INACTIVITY_TIMEOUT;
-  const eventSendInterval = resolveEventSendInterval(cfg);
+  const eventSendInterval =
+    cfg.eventSendInterval ?? DEFAULT_EVENT_SEND_INTERVAL;
   const maxBufferSize = cfg.maxBufferSize ?? DEFAULT_MAX_BUFFER_SIZE;
 
   const sessionMetadata = validateSessionMetadata(config.sessionMetadata);

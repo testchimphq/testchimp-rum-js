@@ -118,12 +118,10 @@ testchimp.flush();
 On `init()`, the SDK registers a stable automation hook on `globalThis` (not only `window`, so ESM bundles such as Angular can use it):
 
 ```javascript
-globalThis.__TC_RUM_FLUSH(); // flushes buffered events with fetch keepalive: true
+const ok = await globalThis.__TC_RUM_FLUSH(); // async: drains buffer and awaits POST (rum-js ≥ 0.1.7)
 ```
 
-`@testchimp/playwright` calls this at the end of each web test (via the extended `page` fixture) so fast SmartTests do not lose buffered events when the browser context closes. Prefer this hook over `testchimp.flush()` in CI: the public `flush()` uses `keepalive: false`.
-
-When Playwright has already set `globalThis.__TC_CI_TEST_INFO` before `init()` and you do not pass `config.eventSendInterval`, the default batch interval is **2s** instead of 10s as a secondary safety net.
+`@testchimp/playwright` (≥ 0.2.6) awaits this in web page fixture teardown while the page is still open. `__TC_RUM_GET_BUFFER_SIZE()` supports a short poll before flush when CI metadata is present. The hook uses a **normal** `fetch` (not keepalive) so the POST completes before Playwright closes the context. Failed POSTs leave events in the buffer. Prefer this hook over `testchimp.flush()` in automation. **Production `emit` is unchanged** — no per-event CI checks; batching uses your configured `eventSendInterval` (default 10s).
 
 ### `testchimp.resetSession()`
 
@@ -143,7 +141,7 @@ Pass these under `config` in `init()`:
 | `enableDefaultSessionMetadata` | `boolean` | `true` | When `true` (default), the session init request is automatically populated with client-derived metadata (`_platform`, browser, device type, OS, language, timezone). Set to `false` to disable and send only your own `sessionMetadata`. |
 | `maxEventsPerSession` | `number` | `100` | Max events accepted per session (by title count + repeats). |
 | `maxRepeatsPerEvent` | `number` | `3` | Max number of events with the same `title` per session. |
-| `eventSendInterval` | `number` | `10000` (or `2000` when `globalThis.__TC_CI_TEST_INFO` is set before `init`) | Interval (ms) for sending buffered events. |
+| `eventSendInterval` | `number` | `10000` | Interval (ms) for sending buffered events. |
 | `maxBufferSize` | `number` | `100` | Max events in buffer before an automatic flush. |
 | `inactivityTimeoutMillis` | `number` | `1800000` (30 min) | Session considered expired after this much inactivity; next load gets a new session. |
 | `testchimpEndpoint` | `string` | `'https://ingress.testchimp.io'` | Base URL for RUM API (session start and events). |
@@ -201,7 +199,8 @@ Session metadata (in `init`) uses the same metadata rules. The type `Struct` is 
   - The `eventSendInterval` timer fires, or
   - The page becomes hidden (`visibilitychange`), or
   - `beforeunload` / `pagehide` fires, or
-  - You call `flush()` or `globalThis.__TC_RUM_FLUSH()` (automation; uses keepalive).
+  - You call `flush()` or `globalThis.__TC_RUM_FLUSH()` (automation; normal fetch while the page is open).
+  - Page unload uses keepalive via `visibilitychange` / `pagehide`.
 - **Delivery**: Requests use `fetch` with `keepalive: true` where needed so delivery is best-effort and non-blocking.
 
 ## Build and development
